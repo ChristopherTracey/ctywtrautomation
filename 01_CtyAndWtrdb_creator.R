@@ -311,6 +311,14 @@ arcpy$management$AlterField(in_table=ESAtable, field="count_Threatened", new_fie
 arcpy$management$AlterField(in_table=ESAtable, field="count_TandE", new_field_alias="Count - ESA Endangered or Threatened")
 
 
+# Botanical Subset at the State level for Wes
+tbl_state_sums_ESA <- tbl_county  %>%
+  group_by(STATE_CD)  %>%
+  dplyr::summarize(
+    count_Endangered = length(GNAME[LE_IND=='Y']),
+    count_Threatened = length(GNAME[LT_IND=='Y']),
+    count_TandE = length(GNAME[LE_IND=='Y']) + length(GNAME[LT_IND=='Y']),
+  )
 
 
 
