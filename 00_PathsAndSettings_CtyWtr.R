@@ -41,6 +41,7 @@ sourceWater <- "S:/Projects/BLD_Standard_Products/County_Watershed_Data/_REFRESH
 # path to feature classes
 counties <- "S:/Data/External/Boundaries_Adminstrative/USGS/countyp010g.gdb/countyp010g"
 watersheds <- "S:/Data/External/Hydrography/WatershedBoundaryDataset/WBD_National_GDB.gdb/WBDHU8"
+states <- "S:/Data/External/Boundaries_Adminstrative/USGS/statesp010g.gdb/statesp010g"
 
 # Make sure the input and output directories have been created:
 ifelse(!dir.exists(here::here("_data")), dir.create(here::here("_data")), FALSE)

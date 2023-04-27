@@ -312,14 +312,39 @@ arcpy$management$AlterField(in_table=ESAtable, field="count_TandE", new_field_al
 
 
 # Botanical Subset at the State level for Wes
-tbl_state_sums_ESA <- tbl_county  %>%
-  group_by(STATE_CD)  %>%
+tbl_state_sums_BSA <- tbl_county  %>%
+  filter(MAJOR_SUBGROUP2=='Flowering Plants' | MAJOR_SUBGROUP2=='Conifers and relatives') %>%
+  group_by(STATE_CD)  %>% # 
   dplyr::summarize(
-    count_Endangered = length(GNAME[LE_IND=='Y']),
-    count_Threatened = length(GNAME[LT_IND=='Y']),
-    count_TandE = length(GNAME[LE_IND=='Y']) + length(GNAME[LT_IND=='Y']),
+    count_Endangered = n_distinct(GNAME[LE_IND=='Y']),
+    count_Threatened = n_distinct(GNAME[LT_IND=='Y']),
+    count_TandE = count_Endangered + count_Threatened
   )
+tbl_state_sums_BSA$sym_count_ESA <- cut(tbl_state_sums_BSA$count_TandE, 
+                                         breaks = c(0, .9, 2, 5, 10, 15, max(tbl_state_sums_BSA$count_TandE)), 
+                                         labels=c("0", "1-2", "3-5", "6-10", "11-15",paste0("16-",max(tbl_state_sums_BSA$count_TandE))), include.lowest=TRUE) 
 
+states_sf <- arc.open(states)
+states_sf <- arc.select(states_sf, fields=c("STATE_ABBR","STATE_FIPS","NAME","SQ_MILES"), where_clause="STATE_ABBR NOT IN ('VI', 'PR') AND POP<>-999")
+states_sf <- arc.data2sf(states_sf)
+setdiff(tbl_state_sums_BSA$STATE_CD, states_sf$STATE_ABBR)
+setdiff(states_sf$STATE_ABBR, tbl_state_sums_BSA$STATE_CD)
+states_BSA_sf <- merge(states_sf, tbl_state_sums_BSA, by.x="STATE_ABBR", by.y="STATE_CD", all.x=TRUE)
+states_BSA_sf <- states_BSA_sf[c("STATE_ABBR","NAME","STATE_FIPS","SQ_MILES","count_Endangered","count_Threatened","count_TandE","sym_count_ESA","geometry")]
+
+states_BSA_sf[c("count_Endangered", "count_Threatened", "count_TandE", "sym_count_ESA")][is.na(states_BSA_sf[c("count_Endangered", "count_Threatened", "count_TandE", "sym_count_ESA")])] <- 0
+
+arc.delete(here::here("_data", "output", updateName, paste0(updateName,".gdb"), "states_BSA"))
+arc.write(here::here("_data", "output", updateName, paste0(updateName,".gdb"), "states_BSA"), states_BSA_sf, validate=TRUE, overwrite=TRUE)
+
+BSAtable <- file.path(wkpath, "states_ESA")
+# set the aliases to the watershed field names
+arcpy$management$AlterField(in_table=ESAtable, field="NAME", new_field_alias="State Name")
+arcpy$management$AlterField(in_table=ESAtable, field="STATE_ABBR", new_field_alias="State Abbreviation")
+arcpy$management$AlterField(in_table=ESAtable, field="SQ_MILES", new_field_alias="Area (sqmi)")
+arcpy$management$AlterField(in_table=ESAtable, field="count_Endangered", new_field_alias="Count - ESA Endangered")
+arcpy$management$AlterField(in_table=ESAtable, field="count_Threatened", new_field_alias="Count - ESA Threatened")
+arcpy$management$AlterField(in_table=ESAtable, field="count_TandE", new_field_alias="Count - ESA Endangered or Threatened")
 
 
 ######################################
