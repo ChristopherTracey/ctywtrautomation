@@ -311,7 +311,7 @@ arcpy$management$AlterField(in_table=ESAtable, field="count_Threatened", new_fie
 arcpy$management$AlterField(in_table=ESAtable, field="count_TandE", new_field_alias="Count - ESA Endangered or Threatened")
 
 
-# Botanical Subset at the State level for Wes
+# Botanical Subset at the State level for Wes - ESA species
 tbl_state_sums_BSA <- tbl_county  %>%
   filter(MAJOR_SUBGROUP2=='Flowering Plants' | MAJOR_SUBGROUP2=='Conifers and relatives') %>%
   group_by(STATE_CD)  %>% # 
@@ -325,7 +325,7 @@ tbl_state_sums_BSA$sym_count_ESA <- cut(tbl_state_sums_BSA$count_TandE,
                                          labels=c("0", "1-2", "3-5", "6-10", "11-15",paste0("16-",max(tbl_state_sums_BSA$count_TandE))), include.lowest=TRUE) 
 
 states_sf <- arc.open(states)
-states_sf <- arc.select(states_sf, fields=c("STATE_ABBR","STATE_FIPS","NAME","SQ_MILES"), where_clause="STATE_ABBR NOT IN ('VI', 'PR') AND POP<>-999")
+states_sf <- arc.select(states_sf, fields=c("STATE_ABBR","STATE_FIPS","TYPE","NAME","SQ_MILES"), where_clause="STATE_ABBR NOT IN ('VI', 'PR') AND POP<>-999 AND TYPE<>'Water'" )
 states_sf <- arc.data2sf(states_sf)
 setdiff(tbl_state_sums_BSA$STATE_CD, states_sf$STATE_ABBR)
 setdiff(states_sf$STATE_ABBR, tbl_state_sums_BSA$STATE_CD)
@@ -339,12 +339,83 @@ arc.write(here::here("_data", "output", updateName, paste0(updateName,".gdb"), "
 
 BSAtable <- file.path(wkpath, "states_ESA")
 # set the aliases to the watershed field names
-arcpy$management$AlterField(in_table=ESAtable, field="NAME", new_field_alias="State Name")
-arcpy$management$AlterField(in_table=ESAtable, field="STATE_ABBR", new_field_alias="State Abbreviation")
-arcpy$management$AlterField(in_table=ESAtable, field="SQ_MILES", new_field_alias="Area (sqmi)")
-arcpy$management$AlterField(in_table=ESAtable, field="count_Endangered", new_field_alias="Count - ESA Endangered")
-arcpy$management$AlterField(in_table=ESAtable, field="count_Threatened", new_field_alias="Count - ESA Threatened")
-arcpy$management$AlterField(in_table=ESAtable, field="count_TandE", new_field_alias="Count - ESA Endangered or Threatened")
+arcpy$management$AlterField(in_table=BSAtable, field="NAME", new_field_alias="State Name")
+arcpy$management$AlterField(in_table=BSAtable, field="STATE_ABBR", new_field_alias="State Abbreviation")
+arcpy$management$AlterField(in_table=BSAtable, field="SQ_MILES", new_field_alias="Area (sqmi)")
+arcpy$management$AlterField(in_table=BSAtable, field="count_G1G#", new_field_alias="Count - G1G3")
+
+###############################################################
+# Botanical Subset at the State level for Wes - G1G3 species
+tbl_state_sums_BSAG1G3 <- tbl_county  %>%
+  filter(MAJOR_SUBGROUP2=='Flowering Plants' | MAJOR_SUBGROUP2=='Conifers and relatives') %>%
+  group_by(STATE_CD)  %>% # 
+  dplyr::summarize(
+    count_G1G3 = n_distinct(GNAME[ROUNDED_G_RANK %in% c("G1","G2","G3")])
+  )
+
+tbl_state_sums_BSAG1G3$sym_count_G1G3 <- cut(tbl_state_sums_BSAG1G3$count_G1G3, 
+                                        breaks = c(0, .9, 2, 5, 10, 15, max(tbl_state_sums_BSAG1G3$count_G1G3)), 
+                                        labels=c("0", "1-2", "3-5", "6-10", "11-15",paste0("16-",max(tbl_state_sums_BSAG1G3$count_G1G3))), include.lowest=TRUE) 
+
+states_sf <- arc.open(states)
+states_sf <- arc.select(states_sf, fields=c("STATE_ABBR","STATE_FIPS","NAME","SQ_MILES"), where_clause="STATE_ABBR NOT IN ('VI', 'PR') AND POP<>-999 AND TYPE<>'Water'")
+states_sf <- arc.data2sf(states_sf)
+setdiff(tbl_state_sums_BSAG1G3$STATE_CD, states_sf$STATE_ABBR)
+setdiff(states_sf$STATE_ABBR, tbl_state_sums_BSAG1G3$STATE_CD)
+states_BSAG1G3_sf <- merge(states_sf, tbl_state_sums_BSAG1G3, by.x="STATE_ABBR", by.y="STATE_CD", all.x=TRUE)
+states_BSAG1G3_sf <- states_BSAG1G3_sf[c("STATE_ABBR","NAME","STATE_FIPS","SQ_MILES","count_G1G3","sym_count_G1G3","geometry")]
+
+states_BSAG1G3_sf[c("count_G1G3", "sym_count_G1G3")][is.na(states_BSAG1G3_sf[c("count_G1G3", "sym_count_G1G3")])] <- 0
+
+arc.delete(here::here("_data", "output", updateName, paste0(updateName,".gdb"), "states_BSAG1G3"))
+arc.write(here::here("_data", "output", updateName, paste0(updateName,".gdb"), "states_BSAG1G3"), states_BSAG1G3_sf, validate=TRUE, overwrite=TRUE)
+
+BSAG1G3table <- file.path(wkpath, "states_BSAG1G3")
+# set the aliases to the watershed field names
+arcpy$management$AlterField(in_table=BSAG1G3table, field="NAME", new_field_alias="State Name")
+arcpy$management$AlterField(in_table=BSAG1G3table, field="STATE_ABBR", new_field_alias="State Abbreviation")
+arcpy$management$AlterField(in_table=BSAG1G3table, field="SQ_MILES", new_field_alias="Area (sqmi)")
+arcpy$management$AlterField(in_table=BSAG1G3table, field="count_G1G3", new_field_alias="Count - G1G3")
+
+###############################################################
+# Botanical Subset at the Region level for Wes - G1G3 species
+regions <- data.frame(state=c("AK","AL","AR","AZ","CA","CO","CT","FL","GA","HI","IA","ID","IL","IN","KS","KY","LA","MA","MD","ME","MI","MN","MO","MS","MT","NC","ND","NE","NH","NJ","NM","NV","NY","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VA","VT","WA","WI","WV","WY"),region=c("","Southeast","Southeast","Southwest","Pacific Southwest","Mountain Prairie","Northeast","Southeast","Southeast","","Midwest","Pacific","Midwest","Midwest","Mountain Prairie","Southeast","Southeast","Northeast","Northeast","Northeast","Midwest","Midwest","Midwest","Southeast","Mountain Prairie","Southeast","Mountain Prairie","Mountain Prairie","Northeast","Northeast","Southwest","Pacific Southwest","Northeast","Midwest","Southwest","Pacific","Northeast","Northeast","Southeast","Mountain Prairie","Southeast","Southwest","Mountain Prairie","Northeast","Northeast","Pacific","Midwest","Northeast","Mountain Prairie")) #,"Northeast","Northeast","Pacific","Midwest","Northeast","Mountain Prairie"
+
+tbl_county1 <- merge(tbl_county, regions, by.x="STATE_CD", by.y="state")
+
+tbl_state_sums_BSARegion <- tbl_county1  %>%
+  filter(MAJOR_SUBGROUP2=='Flowering Plants' | MAJOR_SUBGROUP2=='Conifers and relatives') %>%
+  group_by(region)  %>% # 
+  dplyr::summarize(
+    count_G1G3 = n_distinct(GNAME[ROUNDED_G_RANK %in% c("G1","G2","G3")])
+  )
+
+tbl_state_sums_BSARegion$sym_count_G1G3 <- cut(tbl_state_sums_BSARegion$count_G1G3, 
+                                             breaks = c(0, 50, 100, 200, 500, 750, max(tbl_state_sums_BSARegion$count_G1G3)), 
+                                             labels=c("1-50", "51-100", "101-200", "201-500", "501-750",paste0("750-",max(tbl_state_sums_BSARegion$count_G1G3))), include.lowest=TRUE) 
+
+states_sf <- arc.open(states)
+states_sf <- arc.select(states_sf, fields=c("STATE_ABBR","STATE_FIPS","NAME","SQ_MILES"), where_clause="STATE_ABBR NOT IN ('VI', 'PR') AND POP<>-999 AND TYPE<>'Water'")
+states_sf <- arc.data2sf(states_sf)
+states_sf <- merge(states_sf, regions, by.x="STATE_ABBR", by.y="state")
+states_sf <- st_make_valid(states_sf)
+region_sf <- states_sf %>% group_by(region) %>% dplyr::summarize() 
+
+
+setdiff(tbl_state_sums_BSARegion$region, region_sf$region)
+setdiff(region_sf$region, tbl_state_sums_BSARegion$region)
+region_BSAG1G3_sf <- merge(region_sf, tbl_state_sums_BSARegion, by.x="region", by.y="region", all.x=TRUE)
+region_BSAG1G3_sf <- region_BSAG1G3_sf[c("region","count_G1G3","sym_count_G1G3","geometry")]
+
+region_BSAG1G3_sf[c("count_G1G3", "sym_count_G1G3")][is.na(region_BSAG1G3_sf[c("count_G1G3", "sym_count_G1G3")])] <- 0
+
+arc.delete(here::here("_data", "output", updateName, paste0(updateName,".gdb"), "region_BSAG1G3"))
+arc.write(here::here("_data", "output", updateName, paste0(updateName,".gdb"), "region_BSAG1G3b"), region_BSAG1G3_sf, validate=TRUE, overwrite=TRUE)
+
+BSAG1G3table <- file.path(wkpath, "region_BSAG1G3b")
+# set the aliases to the watershed field names
+arcpy$management$AlterField(in_table=BSAG1G3table, field="region", new_field_alias="Region")
+arcpy$management$AlterField(in_table=BSAG1G3table, field="count_G1G3", new_field_alias="Count - G1G3")
 
 
 ######################################
