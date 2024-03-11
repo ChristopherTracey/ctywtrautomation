@@ -35,7 +35,8 @@ arc.check_product()
 updateName <- "_refresh202303a"
 
 # path to old files 
-sourceCnty <- "S:/Projects/BLD_Standard_Products/County_Watershed_Data/_REFRESH_202203/Data/Source/Script_exports/widget_egt_county_export_202203_v4.txt"
+#sourceCnty <- "S:/Projects/BLD_Standard_Products/County_Watershed_Data/_REFRESH_202203/Data/Source/Script_exports/widget_egt_county_export_202203_v4.txt"
+sourceCnty <- "S:/Projects/_Workspaces/Christopher_Tracey/CountyWatershed/ctywtrautomation/_data/input/BLD_CTY_export_202402.dsv"
 sourceWater <- "S:/Projects/BLD_Standard_Products/County_Watershed_Data/_REFRESH_202203/Data/Source/Script_exports/widget_egt_watershed_202203_export_v4.txt"
 
 # path to feature classes

@@ -13,7 +13,8 @@ require(here)
 source(here::here("00_PathsAndSettings_CtyWtr.r"))
 
 # Load tables
-tbl_county <- read.table(sourceCnty, header=TRUE, sep="\t", colClasses=c("FIPS_CD"="character"))
+#tbl_county <- read.table(sourceCnty, header=TRUE, sep="\t", colClasses=c("FIPS_CD"="character"))
+tbl_county <- read.table(sourceCnty, header=TRUE, sep="|", colClasses=c("FIPS_CD"="character"))
 tbl_watershed <- read.table(sourceWater, header=TRUE, sep="\t", colClasses=c("HUC8_CD"="character"))
 
 ##############################################################################################################
@@ -302,7 +303,7 @@ arc.delete(here::here("_data", "output", updateName, paste0(updateName,".gdb"), 
 arc.write(here::here("_data", "output", updateName, paste0(updateName,".gdb"), "counties_ESA"), counties_ESA_sf, validate=TRUE, overwrite=TRUE)
 
 ESAtable <- file.path(wkpath, "counties_ESA")
-# set the aliases to the watershed field names
+# set the aliases to the field names
 arcpy$management$AlterField(in_table=ESAtable, field="NAME", new_field_alias="County Name")
 arcpy$management$AlterField(in_table=ESAtable, field="STATE", new_field_alias="State")
 arcpy$management$AlterField(in_table=ESAtable, field="SQ_MILES", new_field_alias="Area (sqmi)")
@@ -311,6 +312,9 @@ arcpy$management$AlterField(in_table=ESAtable, field="count_Threatened", new_fie
 arcpy$management$AlterField(in_table=ESAtable, field="count_TandE", new_field_alias="Count - ESA Endangered or Threatened")
 
 
+
+
+#############################################################
 # Botanical Subset at the State level for Wes - ESA species
 tbl_state_sums_BSA <- tbl_county  %>%
   filter(MAJOR_SUBGROUP2=='Flowering Plants' | MAJOR_SUBGROUP2=='Conifers and relatives') %>%
