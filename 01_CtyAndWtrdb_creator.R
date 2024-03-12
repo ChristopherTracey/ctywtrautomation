@@ -135,6 +135,7 @@ setdiff(names(tbl_watershed),names(nabatable2))
 # make a summary table of counts of species by county and watershed
 library(dplyr)
 
+# sums by county
 tbl_county_sums <- tbl_county  %>%
   group_by(FIPS_CD)  %>%
     dplyr::summarize(
@@ -147,6 +148,7 @@ tbl_county_sums$sym_count_G1G2ESA <- cut(tbl_county_sums$count_G1G2ESA,
                                          breaks = c(0, .9, 5, 20, 50, 100, max(tbl_county_sums$count_G1G2ESA)), 
                                          labels=c("No Data", "1-5", "6-20", "21-50", "51-100",">100"), include.lowest=TRUE) 
 
+# sums by watershed
 tbl_watershed_sums <- tbl_watershed  %>%
   group_by(HUC8_CD)  %>%
   dplyr::summarize(
@@ -289,6 +291,44 @@ tbl_county_sums_ESA$sym_count_ESA <- cut(tbl_county_sums_ESA$count_TandE,
                                          breaks = c(0, .9, 2, 5, 10, 15, max(tbl_county_sums_ESA$count_TandE)), 
                                          labels=c("0", "1-2", "3-5", "6-10", "11-15",paste0("16-",max(tbl_county_sums_ESA$count_TandE))), include.lowest=TRUE) 
 
+# sums by state
+tbl_state_sums_ESA <- tbl_county  %>%
+  group_by(STATE_CD)  %>%
+  dplyr::summarize(
+    count_allsp = n(),
+    count_Endangered = length(unique(GNAME[LE_IND=='Y'])),
+    count_Threatened = length(unique(GNAME[LT_IND=='Y'])),
+    count_TandE = length(unique(GNAME[LE_IND=='Y'])) + length(unique(GNAME[LT_IND=='Y'])),
+  )
+tbl_state_sums_ESA$sym_count_TandE <- cut(tbl_state_sums_ESA$count_TandE, 
+                                        breaks = c(0, .9, 5, 20, 50, 100, max(tbl_state_sums_ESA$count_TandE)), 
+                                        labels=c("No Data", "1-5", "6-20", "21-50", "51-100",">100"), include.lowest=TRUE) 
+
+
+states_sf <- arc.open(states)
+states_sf <- arc.select(states_sf, fields=c("STATE_ABBR","STATE_FIPS","TYPE","NAME","SQ_MILES"), where_clause="STATE_ABBR NOT IN ('VI', 'PR') AND POP<>-999 AND TYPE<>'Water'" )
+states_sf <- arc.data2sf(states_sf)
+setdiff(tbl_state_sums_ESA$STATE_CD, states_sf$STATE_ABBR)
+setdiff(states_sf$STATE_ABBR, tbl_state_sums_ESA$STATE_CD)
+states_ESA_sf <- merge(states_sf, tbl_state_sums_ESA, by.x="STATE_ABBR", by.y="STATE_CD", all.x=TRUE)
+states_ESA_sf <- states_ESA_sf[c("STATE_ABBR","NAME","STATE_FIPS","SQ_MILES","count_Endangered","count_Threatened","count_TandE","sym_count_TandE","geometry")]
+
+states_ESA_sf[c("count_Endangered", "count_Threatened", "count_TandE", "sym_count_TandE")][is.na(states_ESA_sf[c("count_Endangered", "count_Threatened", "count_TandE", "sym_count_TandE")])] <- 0
+
+arc.delete(here::here("_data", "output", updateName, paste0(updateName,".gdb"), "states_ESA"))
+arc.write(here::here("_data", "output", updateName, paste0(updateName,".gdb"), "states_ESA"), states_ESA_sf, validate=TRUE, overwrite=TRUE)
+
+ESAtable <- file.path(wkpath, "states_ESA")
+# set the aliases to the watershed field names
+arcpy$management$AlterField(in_table=ESAtable, field="NAME", new_field_alias="State Name")
+arcpy$management$AlterField(in_table=ESAtable, field="STATE_ABBR", new_field_alias="State Abbreviation")
+arcpy$management$AlterField(in_table=ESAtable, field="SQ_MILES", new_field_alias="Area (sqmi)")
+arcpy$management$AlterField(in_table=ESAtable, field="count_TandE", new_field_alias="Count - T & E")
+
+
+
+
+########################
 counties_sf <- arc.open(counties)
 counties_sf <- arc.select(counties_sf, fields=c("ADMIN_NAME","ADMIN_FIPS","STATE","STATE_FIPS","NAME","SQ_MILES","SUFFIX"), where_clause="STATE NOT IN ('VI', 'PR') AND POP<>-999")
 counties_sf <- arc.data2sf(counties_sf)
